@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On My Day</title>
+<link rel="stylesheet" href="estilospro.css">
+</head>
+<body>
+
+<header class="nav">
+  <a href="#inicio" class="brand" data-go="inicio" aria-label="On My Day">
+
+    <span><img src="logo2.jpg" class="imagen"  ></span>
+  </a>
+  <nav id="menu" aria-label="Secciones">
+    <button data-go="inicio" class="active">Inicio</button>
+    <button data-go="calendario">Calendario</button>
+    <button data-go="cumpleanos">Cumpleaños</button>
+    <button data-go="notas">Notas</button>
+  </nav>
+  <button id="btnNotif" class="btn ghost small"> Activar avisos</button>
+</header>
+
+<main>
+  <section id="inicio" class="view active">
+    <div class="card hero">
+      <h1>Tus cumpleaños, siempre presentes</h1>
+      <p>Nunca olvides una fecha especial: guarda nombres, cumpleaños e ideas de regalo en un solo lugar.</p>
+      <button class="btn" id="btnAgregarRapido">Agregar cumpleaños</button>
+    </div>
+    <h2>Próximos cumpleaños</h2>
+    <div id="proximos" class="cards-row"></div>
+  </section>
+
+  <section id="calendario" class="view">
+    <div class="cal-layout">
+      <div class="card">
+        <div class="cal-head">
+          <button class="btn small" id="prevMes" aria-label="Mes anterior">‹</button>
+          <h2 id="tituloMes"></h2>
+          <button class="btn small" id="nextMes" aria-label="Mes siguiente">›</button>
+          <button class="btn ghost small" id="hoyBtn">Hoy</button>
+        </div>
+        <div class="grid dias-semana" id="diasSemana"></div>
+        <div class="grid" id="diasMes"></div>
+      </div>
+      <aside class="card" id="panelDia">
+        <h3>Cumpleaños del día</h3>
+        <div id="detalleDia"><p class="vacio">Toca un día del calendario para ver quién cumple años.</p></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="cumpleanos" class="view">
+    <div class="card">
+      <h2 id="tituloForm">Agregar cumpleaños</h2>
+      <form id="form" autocomplete="off">
+        <input type="hidden" id="editId">
+        <label>Nombre
+          <input type="text" id="nombre" required maxlength="40" placeholder="Ej. María">
+        </label>
+        <label>Fecha de cumpleaños
+          <input type="date" id="fecha" required>
+        </label>
+        <label>Ideas de regalo
+          <textarea id="regalo" rows="3" placeholder="Ej. Libro de cocina, bufanda azul…"></textarea>
+        </label>
+        <div class="acciones">
+          <button type="submit" class="btn" id="btnGuardar">Guardar cumpleaños</button>
+          <button type="button" class="btn ghost" id="btnCancelar" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Todos los cumpleaños</h2>
+      <div class="orden">
+        <label>Ordenar por
+          <select id="orden">
+            <option value="proximo">Próximo a llegar</option>
+            <option value="mes">Mes y día</option>
+            <option value="nombre">Nombre</option>
+          </select>
+        </label>
+      </div>
+      <ul id="lista" class="lista"></ul>
+    </div>
+  </section>
+
+  <section id="notas" class="view">
+    <div class="card">
+      <h2>Notas</h2>
+      <p>Anota cualquier idea o recordatorio sobre regalos y celebraciones.</p>
+      <textarea id="notasGenerales" rows="10" placeholder="Escribe aquí tus ideas…"></textarea>
+      <p class="estado" id="estadoNotas" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="cu3rpo.js"></script>
+</body>
+</html>
