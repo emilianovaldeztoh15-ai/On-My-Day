@@ -1,175 +1,607 @@
-"use strict";
-const $ = (s) => document.querySelector(s);
-const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const KEY = "cumples_v1", KEY_NOTAS = "cumples_notas_v1";
+var MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+var DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+var DIAS_POR_MES = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-let personas = JSON.parse(localStorage.getItem(KEY) || "[]");
-let hoy = new Date(); hoy.setHours(0,0,0,0);
-let mesVista = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-let diaSel = null;
+var personas = [];
+var notas = [];
+var hoy = new Date();
+hoy.setHours(0, 0, 0, 0);
+var mesVista = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+var seleccionAnio = 0;
+var seleccionMes = 0;
+var seleccionDia = 0;
 
-const guardar = () => localStorage.setItem(KEY, JSON.stringify(personas));
-const pad = (n) => String(n).padStart(2, "0");
-const partes = (f) => { const [y,m,d] = f.split("-").map(Number); return {y,m,d}; };
-const esc = (t) => t.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const inicial = (n) => esc(n.trim().charAt(0).toUpperCase());
-
-function proximaFecha(f){
-  const {m,d} = partes(f);
-  let y = hoy.getFullYear();
-  let fecha = new Date(y, m-1, d);
-  if (fecha < hoy) fecha = new Date(y+1, m-1, d);
-  return fecha;
-}
-const diasFaltan = (f) => Math.round((proximaFecha(f) - hoy) / 864e5);
-const textoDias = (n) => n === 0 ? "¡Es hoy! 🎉" : n === 1 ? "Falta 1 día" : `Faltan ${n} días`;
-const textoFecha = (f) => { const {m,d} = partes(f); return `${d} de ${MESES[m-1]}`; };
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2400); }
-
-/* ---------- Navegación ---------- */
-function ir(id){
-  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === id));
-  document.querySelectorAll("#menu button").forEach(b => b.classList.toggle("active", b.dataset.go === id));
-  window.scrollTo({top:0});
-}
-document.querySelectorAll("[data-go]").forEach(el => el.addEventListener("click", e => { e.preventDefault(); ir(el.dataset.go); }));
-$("#btnAgregarRapido").onclick = () => { ir("cumpleanos"); $("#nombre").focus(); };
-
-/* ---------- Inicio ---------- */
-function tarjeta(p){
-  return `<div class="persona"><div class="avatar">${inicial(p.nombre)}</div>
-    <div><b>${esc(p.nombre)}</b><small>${textoFecha(p.fecha)}</small><small>${textoDias(diasFaltan(p.fecha))}</small></div></div>`;
-}
-function renderInicio(){
-  const prox = [...personas].sort((a,b) => diasFaltan(a.fecha) - diasFaltan(b.fecha)).slice(0,4);
-  $("#proximos").innerHTML = prox.length ? prox.map(tarjeta).join("") : `<p class="vacio">Aún no hay cumpleaños. Agrega el primero.</p>`;
-}
-
-/* ---------- Calendario ---------- */
-function renderCalendario(){
-  $("#diasSemana").innerHTML = DIAS.map(d => `<div>${d}</div>`).join("");
-  const y = mesVista.getFullYear(), m = mesVista.getMonth();
-  $("#tituloMes").textContent = `${MESES[m]} ${y}`;
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7;      // semana inicia en lunes
-  const total = new Date(y, m+1, 0).getDate();
-  const prevTotal = new Date(y, m, 0).getDate();
-  let html = "";
-  for (let i = offset; i > 0; i--) html += `<div class="dia fuera" aria-hidden="true">${prevTotal - i + 1}</div>`;
-  for (let d = 1; d <= total; d++){
-    const esHoy = y===hoy.getFullYear() && m===hoy.getMonth() && d===hoy.getDate();
-    const hay = personas.some(p => { const f=partes(p.fecha); return f.m===m+1 && f.d===d; });
-    const sel = diaSel && diaSel.y===y && diaSel.m===m && diaSel.d===d;
-    html += `<button class="dia${esHoy?" hoy":""}${sel?" sel":""}" data-d="${d}" aria-label="${d} de ${MESES[m]}${hay?", hay cumpleaños":""}">${d}${hay?'<span class="punto"></span>':""}</button>`;
+function crearElemento(etiqueta, clase, texto) {
+  var elemento = document.createElement(etiqueta);
+  if (clase != "") {
+    elemento.className = clase;
   }
-  const resto = (7 - (offset + total) % 7) % 7;
-  for (let i = 1; i <= resto; i++) html += `<div class="dia fuera" aria-hidden="true">${i}</div>`;
-  $("#diasMes").innerHTML = html;
+  elemento.textContent = texto;
+  return elemento;
 }
-$("#diasMes").addEventListener("click", e => {
-  const b = e.target.closest("[data-d]"); if (!b) return;
-  diaSel = { y: mesVista.getFullYear(), m: mesVista.getMonth(), d: +b.dataset.d };
-  renderCalendario(); mostrarDia();
-});
-function mostrarDia(){
-  if (!diaSel) return;
-  const lista = personas.filter(p => { const f=partes(p.fecha); return f.m===diaSel.m+1 && f.d===diaSel.d; });
-  $("#detalleDia").innerHTML = `<p><b>${diaSel.d} de ${MESES[diaSel.m]}</b></p>` + (lista.length
-    ? lista.map(p => `<div class="persona" style="margin-bottom:8px"><div class="avatar">${inicial(p.nombre)}</div>
-        <div><b>${esc(p.nombre)}</b>${p.regalo ? `<small>🎁 ${esc(p.regalo)}</small>` : ""}</div></div>`).join("")
-    : `<p class="vacio">Nadie cumple años este día.</p>`);
-}
-$("#prevMes").onclick = () => { mesVista.setMonth(mesVista.getMonth()-1); renderCalendario(); };
-$("#nextMes").onclick = () => { mesVista.setMonth(mesVista.getMonth()+1); renderCalendario(); };
-$("#hoyBtn").onclick = () => { mesVista = new Date(hoy.getFullYear(), hoy.getMonth(), 1); renderCalendario(); };
 
-/* ---------- Cumpleaños (formulario + lista) ---------- */
-$("#form").addEventListener("submit", e => {
-  e.preventDefault();
-  const nombre = $("#nombre").value.trim(), fecha = $("#fecha").value, regalo = $("#regalo").value.trim();
-  if (!nombre || !fecha) return;
-  const id = $("#editId").value;
-  if (id){ Object.assign(personas.find(p => p.id === id), {nombre, fecha, regalo}); toast("Cambios guardados"); }
-  else { personas.push({ id: Date.now().toString(36), nombre, fecha, regalo }); toast("Cumpleaños guardado"); }
-  guardar(); resetForm(); renderTodo(); avisar();
-});
-function resetForm(){
-  $("#form").reset(); $("#editId").value = "";
-  $("#tituloForm").textContent = "Agregar cumpleaños"; $("#btnGuardar").textContent = "Guardar cumpleaños";
-  $("#btnCancelar").hidden = true;
+function guardarPersonas() {
+  localStorage.setItem("cumples_v1", JSON.stringify(personas));
 }
-$("#btnCancelar").onclick = resetForm;
-function renderLista(){
-  const o = $("#orden").value;
-  const ord = [...personas].sort((a,b) => {
-    if (o === "nombre") return a.nombre.localeCompare(b.nombre, "es");
-    if (o === "mes"){ const x=partes(a.fecha), y=partes(b.fecha); return x.m-y.m || x.d-y.d; }
-    return diasFaltan(a.fecha) - diasFaltan(b.fecha);
+
+function guardarNotas() {
+  localStorage.setItem("cumples_notas_v2", JSON.stringify(notas));
+}
+
+function cargarDatos() {
+  var textoPersonas = localStorage.getItem("cumples_v1");
+  if (textoPersonas != null) {
+    personas = JSON.parse(textoPersonas);
+  }
+  for (var i = 0; i < personas.length; i++) {
+    if (personas[i].fecha) {
+      var partes = personas[i].fecha.split("-");
+      personas[i].mes = Number(partes[1]);
+      personas[i].dia = Number(partes[2]);
+      delete personas[i].fecha;
+    }
+  }
+  var textoNotas = localStorage.getItem("cumples_notas_v2");
+  if (textoNotas != null) {
+    notas = JSON.parse(textoNotas);
+  } else {
+    var notaVieja = localStorage.getItem("cumples_notas_v1");
+    if (notaVieja != null && notaVieja != "") {
+      notas.push({ id: String(new Date().getTime()), titulo: "Mis ideas", texto: notaVieja });
+    }
+  }
+}
+
+function mostrarMensaje(texto) {
+  var mensaje = document.getElementById("toast");
+  mensaje.textContent = texto;
+  mensaje.classList.add("show");
+  setTimeout(function () {
+    mensaje.classList.remove("show");
+  }, 2400);
+}
+
+function diasQueFaltan(persona) {
+  var anio = hoy.getFullYear();
+  var fecha = new Date(anio, persona.mes - 1, persona.dia);
+  if (fecha < hoy) {
+    fecha = new Date(anio + 1, persona.mes - 1, persona.dia);
+  }
+  return Math.round((fecha - hoy) / 86400000);
+}
+
+function textoDias(numero) {
+  if (numero == 0) {
+    return "¡Es hoy! ";
+  }
+  if (numero == 1) {
+    return "Falta 1 día";
+  }
+  return "Faltan " + numero + " días";
+}
+
+function textoFecha(persona) {
+  return persona.dia + " de " + MESES[persona.mes - 1];
+}
+
+function hayCumpleanos(mes, dia) {
+  for (var i = 0; i < personas.length; i++) {
+    if (personas[i].mes == mes && personas[i].dia == dia) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function irA(idSeccion) {
+  var secciones = document.getElementsByClassName("view");
+  for (var i = 0; i < secciones.length; i++) {
+    if (secciones[i].id == idSeccion) {
+      secciones[i].classList.add("active");
+    } else {
+      secciones[i].classList.remove("active");
+    }
+  }
+  var botones = document.querySelectorAll("#menu button");
+  for (var j = 0; j < botones.length; j++) {
+    if (botones[j].getAttribute("data-go") == idSeccion) {
+      botones[j].classList.add("active");
+    } else {
+      botones[j].classList.remove("active");
+    }
+  }
+  window.scrollTo(0, 0);
+}
+
+var enlacesDeNavegacion = document.querySelectorAll("[data-go]");
+for (var n = 0; n < enlacesDeNavegacion.length; n++) {
+  enlacesDeNavegacion[n].addEventListener("click", function (evento) {
+    evento.preventDefault();
+    irA(this.getAttribute("data-go"));
   });
-  $("#lista").innerHTML = ord.length ? ord.map(p => `<li>
-      <div class="avatar">${inicial(p.nombre)}</div>
-      <div class="info"><b>${esc(p.nombre)}</b><small>${textoFecha(p.fecha)} · ${textoDias(diasFaltan(p.fecha))}</small></div>
-      <button data-edit="${p.id}">Editar</button><button class="borrar" data-del="${p.id}">Borrar</button></li>`).join("")
-    : `<p class="vacio">Todavía no hay cumpleaños guardados.</p>`;
-}
-$("#orden").onchange = renderLista;
-$("#lista").addEventListener("click", e => {
-  const ed = e.target.dataset.edit, del = e.target.dataset.del;
-  if (ed){
-    const p = personas.find(x => x.id === ed);
-    $("#editId").value = p.id; $("#nombre").value = p.nombre; $("#fecha").value = p.fecha; $("#regalo").value = p.regalo || "";
-    $("#tituloForm").textContent = "Editar cumpleaños"; $("#btnGuardar").textContent = "Guardar cambios";
-    $("#btnCancelar").hidden = false; window.scrollTo({top:0, behavior:"smooth"}); $("#nombre").focus();
-  }
-  if (del && confirm("¿Borrar este cumpleaños?")){
-    personas = personas.filter(p => p.id !== del); guardar(); renderTodo(); toast("Cumpleaños borrado");
-  }
-});
-
-/* ---------- Regalos ---------- */
-function renderRegalos(){
-  $("#guiaRegalos").innerHTML = personas.length ? [...personas].sort((a,b) => a.nombre.localeCompare(b.nombre,"es")).map(p => `
-    <div class="card regalo-card"><h3><span class="avatar">${inicial(p.nombre)}</span>${esc(p.nombre)}</h3>
-    <small>${textoFecha(p.fecha)}</small>
-    <p>${p.regalo ? esc(p.regalo) : '<span class="vacio">Sin ideas todavía. Edítalo en Cumpleaños.</span>'}</p></div>`).join("")
-    : `<p class="vacio">Agrega personas para guardar sus ideas de regalo.</p>`;
 }
 
-/* ---------- Notas ---------- */
-const notas = $("#notasGenerales"); notas.value = localStorage.getItem(KEY_NOTAS) || "";
-let tNotas;
-notas.addEventListener("input", () => {
-  clearTimeout(tNotas);
-  tNotas = setTimeout(() => { localStorage.setItem(KEY_NOTAS, notas.value); $("#estadoNotas").textContent = "Notas guardadas"; }, 400);
-});
-
-/* ---------- Notificaciones (solo permiso de avisos) ---------- */
-function actualizarBtnNotif(){
-  const b = $("#btnNotif");
-  if (!("Notification" in window)){ b.hidden = true; return; }
-  b.textContent = Notification.permission === "granted" ? "🔔 Avisos activados" : "🔔 Activar avisos";
-  b.disabled = Notification.permission === "granted";
-}
-$("#btnNotif").onclick = async () => {
-  const r = await Notification.requestPermission();
-  actualizarBtnNotif();
-  if (r === "granted"){ toast("Avisos activados"); avisar(true); } else toast("No se activaron los avisos");
+document.getElementById("btnAgregarRapido").onclick = function () {
+  irA("cumpleanos");
+  document.getElementById("nombre").focus();
 };
-function avisar(forzar){
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-  const dia = hoy.toDateString();
-  personas.forEach(p => {
-    const n = diasFaltan(p.fecha);
-    if (n > 1) return;
-    const clave = `aviso_${p.id}_${dia}_${n}`;
-    if (!forzar && localStorage.getItem(clave)) return;
-    localStorage.setItem(clave, "1");
-    new Notification(n === 0 ? `🎉 Hoy cumple años ${p.nombre}` : `Mañana cumple años ${p.nombre}`,
-      { body: p.regalo ? `Idea de regalo: ${p.regalo}` : "No olvides felicitarle." });
-  });
+
+function crearTarjetaPersona(persona) {
+  var tarjeta = crearElemento("div", "persona", "");
+  var avatar = crearElemento("div", "avatar", persona.nombre.charAt(0).toUpperCase());
+  var info = document.createElement("div");
+  info.appendChild(crearElemento("b", "", persona.nombre));
+  info.appendChild(crearElemento("small", "", textoFecha(persona)));
+  info.appendChild(crearElemento("small", "", textoDias(diasQueFaltan(persona))));
+  tarjeta.appendChild(avatar);
+  tarjeta.appendChild(info);
+  return tarjeta;
 }
 
-/* ---------- Arranque ---------- */
-function renderTodo(){ renderInicio(); renderCalendario(); mostrarDia(); renderLista(); renderRegalos(); }
-renderTodo(); actualizarBtnNotif(); avisar();
-setInterval(() => { const h = new Date(); h.setHours(0,0,0,0); if (+h !== +hoy){ hoy = h; renderTodo(); } avisar(); }, 60000);
+function mostrarProximos() {
+  var contenedor = document.getElementById("proximos");
+  contenedor.innerHTML = "";
+  if (personas.length == 0) {
+    contenedor.appendChild(crearElemento("p", "vacio", "Aún no hay cumpleaños. Agrega el primero."));
+    return;
+  }
+  var copia = personas.slice();
+  copia.sort(function (a, b) {
+    return diasQueFaltan(a) - diasQueFaltan(b);
+  });
+  var cantidad = 4;
+  if (copia.length < 4) {
+    cantidad = copia.length;
+  }
+  for (var i = 0; i < cantidad; i++) {
+    contenedor.appendChild(crearTarjetaPersona(copia[i]));
+  }
+}
+
+function crearAccionDia(dia) {
+  return function () {
+    seleccionAnio = mesVista.getFullYear();
+    seleccionMes = mesVista.getMonth();
+    seleccionDia = dia;
+    dibujarCalendario();
+    mostrarDetalleDia();
+  };
+}
+
+function dibujarCalendario() {
+  var contenedorSemana = document.getElementById("diasSemana");
+  contenedorSemana.innerHTML = "";
+  for (var i = 0; i < DIAS_SEMANA.length; i++) {
+    contenedorSemana.appendChild(crearElemento("div", "", DIAS_SEMANA[i]));
+  }
+
+  var anio = mesVista.getFullYear();
+  var mes = mesVista.getMonth();
+  document.getElementById("tituloMes").textContent = MESES[mes] + " " + anio;
+
+  var contenedor = document.getElementById("diasMes");
+  contenedor.innerHTML = "";
+
+  var espacios = new Date(anio, mes, 1).getDay() - 1;
+  if (espacios < 0) {
+    espacios = 6;
+  }
+  var totalDias = new Date(anio, mes + 1, 0).getDate();
+  var totalMesAnterior = new Date(anio, mes, 0).getDate();
+
+  for (var k = espacios; k > 0; k--) {
+    contenedor.appendChild(crearElemento("div", "dia fuera", totalMesAnterior - k + 1));
+  }
+
+  for (var dia = 1; dia <= totalDias; dia++) {
+    var clase = "dia";
+    if (anio == hoy.getFullYear() && mes == hoy.getMonth() && dia == hoy.getDate()) {
+      clase = clase + " hoy";
+    }
+    if (anio == seleccionAnio && mes == seleccionMes && dia == seleccionDia) {
+      clase = clase + " sel";
+    }
+    var boton = crearElemento("button", clase, dia);
+    if (hayCumpleanos(mes + 1, dia)) {
+      boton.appendChild(crearElemento("span", "punto", ""));
+      boton.setAttribute("aria-label", dia + " de " + MESES[mes] + ", hay cumpleaños");
+    }
+    boton.onclick = crearAccionDia(dia);
+    contenedor.appendChild(boton);
+  }
+
+  var sobran = (7 - (espacios + totalDias) % 7) % 7;
+  for (var s = 1; s <= sobran; s++) {
+    contenedor.appendChild(crearElemento("div", "dia fuera", s));
+  }
+}
+
+function mostrarDetalleDia() {
+  if (seleccionDia == 0) {
+    return;
+  }
+  var contenedor = document.getElementById("detalleDia");
+  contenedor.innerHTML = "";
+  var titulo = document.createElement("p");
+  titulo.appendChild(crearElemento("b", "", seleccionDia + " de " + MESES[seleccionMes]));
+  contenedor.appendChild(titulo);
+
+  var encontrados = 0;
+  for (var i = 0; i < personas.length; i++) {
+    if (personas[i].mes == seleccionMes + 1 && personas[i].dia == seleccionDia) {
+      var tarjeta = crearElemento("div", "persona", "");
+      tarjeta.style.marginBottom = "8px";
+      var avatar = crearElemento("div", "avatar", personas[i].nombre.charAt(0).toUpperCase());
+      var info = document.createElement("div");
+      info.appendChild(crearElemento("b", "", personas[i].nombre));
+      if (personas[i].regalo != "") {
+        info.appendChild(crearElemento("small", "", " " + personas[i].regalo));
+      }
+      tarjeta.appendChild(avatar);
+      tarjeta.appendChild(info);
+      contenedor.appendChild(tarjeta);
+      encontrados = encontrados + 1;
+    }
+  }
+  if (encontrados == 0) {
+    contenedor.appendChild(crearElemento("p", "vacio", "Nadie cumple años este día."));
+  }
+}
+
+document.getElementById("prevMes").onclick = function () {
+  mesVista.setMonth(mesVista.getMonth() - 1);
+  dibujarCalendario();
+};
+
+document.getElementById("nextMes").onclick = function () {
+  mesVista.setMonth(mesVista.getMonth() + 1);
+  dibujarCalendario();
+};
+
+document.getElementById("hoyBtn").onclick = function () {
+  mesVista = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  dibujarCalendario();
+};
+
+function llenarDias() {
+  var selectorMes = document.getElementById("mes");
+  var selectorDia = document.getElementById("dia");
+  var diaActual = selectorDia.value;
+  var cantidad = 31;
+  if (selectorMes.value != "") {
+    cantidad = DIAS_POR_MES[Number(selectorMes.value) - 1];
+  }
+  selectorDia.innerHTML = "";
+  var opcionVacia = document.createElement("option");
+  opcionVacia.value = "";
+  opcionVacia.textContent = "Día";
+  selectorDia.appendChild(opcionVacia);
+  for (var i = 1; i <= cantidad; i++) {
+    var opcion = document.createElement("option");
+    opcion.value = i;
+    opcion.textContent = i;
+    selectorDia.appendChild(opcion);
+  }
+  if (diaActual != "" && Number(diaActual) <= cantidad) {
+    selectorDia.value = diaActual;
+  }
+}
+
+document.getElementById("mes").onchange = llenarDias;
+
+function limpiarFormulario() {
+  document.getElementById("form").reset();
+  document.getElementById("editId").value = "";
+  document.getElementById("tituloForm").textContent = "Agregar cumpleaños";
+  document.getElementById("btnGuardar").textContent = "Guardar cumpleaños";
+  document.getElementById("btnCancelar").hidden = true;
+  llenarDias();
+}
+
+document.getElementById("btnCancelar").onclick = limpiarFormulario;
+
+document.getElementById("form").addEventListener("submit", function (evento) {
+  evento.preventDefault();
+  var nombre = document.getElementById("nombre").value.trim();
+  var mes = Number(document.getElementById("mes").value);
+  var dia = Number(document.getElementById("dia").value);
+  var regalo = document.getElementById("regalo").value.trim();
+  var idEdicion = document.getElementById("editId").value;
+
+  if (nombre == "" || mes == 0 || dia == 0) {
+    mostrarMensaje("Completa el nombre, el mes y el día");
+    return;
+  }
+
+  if (idEdicion != "") {
+    for (var i = 0; i < personas.length; i++) {
+      if (personas[i].id == idEdicion) {
+        personas[i].nombre = nombre;
+        personas[i].mes = mes;
+        personas[i].dia = dia;
+        personas[i].regalo = regalo;
+      }
+    }
+    mostrarMensaje("Cambios guardados");
+  } else {
+    var nueva = {
+      id: String(new Date().getTime()),
+      nombre: nombre,
+      mes: mes,
+      dia: dia,
+      regalo: regalo
+    };
+    personas.push(nueva);
+    mostrarMensaje("Cumpleaños guardado");
+  }
+
+  guardarPersonas();
+  limpiarFormulario();
+  dibujarTodo();
+  mostrarAvisos(false);
+});
+
+function editarPersona(id) {
+  for (var i = 0; i < personas.length; i++) {
+    if (personas[i].id == id) {
+      document.getElementById("editId").value = personas[i].id;
+      document.getElementById("nombre").value = personas[i].nombre;
+      document.getElementById("mes").value = personas[i].mes;
+      llenarDias();
+      document.getElementById("dia").value = personas[i].dia;
+      document.getElementById("regalo").value = personas[i].regalo;
+      document.getElementById("tituloForm").textContent = "Editar cumpleaños";
+      document.getElementById("btnGuardar").textContent = "Guardar cambios";
+      document.getElementById("btnCancelar").hidden = false;
+      window.scrollTo(0, 0);
+      document.getElementById("nombre").focus();
+    }
+  }
+}
+
+function borrarPersona(id) {
+  var respuesta = confirm("¿Borrar este cumpleaños?");
+  if (respuesta == false) {
+    return;
+  }
+  var restantes = [];
+  for (var i = 0; i < personas.length; i++) {
+    if (personas[i].id != id) {
+      restantes.push(personas[i]);
+    }
+  }
+  personas = restantes;
+  guardarPersonas();
+  dibujarTodo();
+  mostrarMensaje("Cumpleaños borrado");
+}
+
+function crearBotonEditar(id) {
+  var boton = crearElemento("button", "", "Editar");
+  boton.onclick = function () {
+    editarPersona(id);
+  };
+  return boton;
+}
+
+function crearBotonBorrar(id) {
+  var boton = crearElemento("button", "borrar", "Borrar");
+  boton.onclick = function () {
+    borrarPersona(id);
+  };
+  return boton;
+}
+
+function mostrarLista() {
+  var lista = document.getElementById("lista");
+  lista.innerHTML = "";
+  if (personas.length == 0) {
+    lista.appendChild(crearElemento("p", "vacio", "Todavía no hay cumpleaños guardados."));
+    return;
+  }
+
+  var orden = document.getElementById("orden").value;
+  var copia = personas.slice();
+  if (orden == "nombre") {
+    copia.sort(function (a, b) {
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
+  } else if (orden == "mes") {
+    copia.sort(function (a, b) {
+      if (a.mes != b.mes) {
+        return a.mes - b.mes;
+      }
+      return a.dia - b.dia;
+    });
+  } else {
+    copia.sort(function (a, b) {
+      return diasQueFaltan(a) - diasQueFaltan(b);
+    });
+  }
+
+  for (var i = 0; i < copia.length; i++) {
+    var persona = copia[i];
+    var fila = document.createElement("li");
+    var avatar = crearElemento("div", "avatar", persona.nombre.charAt(0).toUpperCase());
+    var info = crearElemento("div", "info", "");
+    info.appendChild(crearElemento("b", "", persona.nombre));
+    info.appendChild(crearElemento("small", "", textoFecha(persona) + " · " + textoDias(diasQueFaltan(persona))));
+    fila.appendChild(avatar);
+    fila.appendChild(info);
+    fila.appendChild(crearBotonEditar(persona.id));
+    fila.appendChild(crearBotonBorrar(persona.id));
+    lista.appendChild(fila);
+  }
+}
+
+document.getElementById("orden").onchange = mostrarLista;
+
+function crearNota(nota) {
+  var articulo = document.createElement("article");
+  articulo.className = "nota";
+
+  var titulo = document.createElement("input");
+  titulo.className = "nota-titulo";
+  titulo.maxLength = 40;
+  titulo.placeholder = "Título de la nota";
+  titulo.value = nota.titulo;
+
+  var texto = document.createElement("textarea");
+  texto.className = "nota-texto";
+  texto.rows = 6;
+  texto.placeholder = "Escribe aquí tus ideas…";
+  texto.value = nota.texto;
+  texto.style.resize = "none";
+
+  var acciones = crearElemento("div", "acciones", "");
+  var botonGuardar = crearElemento("button", "btn small", "Guardar nota");
+  botonGuardar.type = "button";
+  var botonBorrar = crearElemento("button", "btn ghost small", "Eliminar");
+  botonBorrar.type = "button";
+  var estado = crearElemento("span", "estado", "");
+  estado.style.margin = "0";
+
+  titulo.oninput = function () {
+    estado.textContent = "Cambios sin guardar";
+  };
+  texto.oninput = function () {
+    estado.textContent = "Cambios sin guardar";
+  };
+
+  botonGuardar.onclick = function () {
+    nota.titulo = titulo.value.trim();
+    nota.texto = texto.value;
+    guardarNotas();
+    estado.textContent = "✓ Nota guardada";
+    mostrarMensaje("Nota guardada");
+  };
+
+  botonBorrar.onclick = function () {
+    var respuesta = confirm("¿Eliminar esta nota?");
+    if (respuesta == false) {
+      return;
+    }
+    var restantes = [];
+    for (var i = 0; i < notas.length; i++) {
+      if (notas[i].id != nota.id) {
+        restantes.push(notas[i]);
+      }
+    }
+    notas = restantes;
+    guardarNotas();
+    articulo.parentNode.removeChild(articulo);
+    if (notas.length == 0) {
+      dibujarNotas();
+    }
+    mostrarMensaje("Nota eliminada");
+  };
+
+  acciones.appendChild(botonGuardar);
+  acciones.appendChild(botonBorrar);
+  acciones.appendChild(estado);
+  articulo.appendChild(titulo);
+  articulo.appendChild(texto);
+  articulo.appendChild(acciones);
+  return articulo;
+}
+
+function dibujarNotas() {
+  var contenedor = document.getElementById("listaNotas");
+  contenedor.innerHTML = "";
+  if (notas.length == 0) {
+    contenedor.appendChild(crearElemento("p", "vacio", "No tienes notas. Crea una con \"Nueva nota\"."));
+    return;
+  }
+  for (var i = 0; i < notas.length; i++) {
+    contenedor.appendChild(crearNota(notas[i]));
+  }
+}
+
+document.getElementById("nuevaNota").onclick = function () {
+  var nota = { id: String(new Date().getTime()), titulo: "", texto: "" };
+  notas.push(nota);
+  guardarNotas();
+  dibujarNotas();
+  var articulos = document.getElementsByClassName("nota");
+  var ultima = articulos[articulos.length - 1];
+  ultima.scrollIntoView({ behavior: "smooth", block: "center" });
+  ultima.getElementsByClassName("nota-titulo")[0].focus();
+};
+
+function actualizarBotonAvisos() {
+  var boton = document.getElementById("btnNotif");
+  if (!("Notification" in window)) {
+    boton.hidden = true;
+    return;
+  }
+  if (Notification.permission == "granted") {
+    boton.textContent = "Avisos activados";
+    boton.disabled = true;
+  } else {
+    boton.textContent = "Activar avisos";
+    boton.disabled = false;
+  }
+}
+
+document.getElementById("btnNotif").onclick = function () {
+  Notification.requestPermission().then(function (respuesta) {
+    actualizarBotonAvisos();
+    if (respuesta == "granted") {
+      mostrarMensaje("Avisos activados");
+      mostrarAvisos(true);
+    } else {
+      mostrarMensaje("No se activaron los avisos");
+    }
+  });
+};
+
+function mostrarAvisos(siempre) {
+  if (!("Notification" in window)) {
+    return;
+  }
+  if (Notification.permission != "granted") {
+    return;
+  }
+  for (var i = 0; i < personas.length; i++) {
+    var dias = diasQueFaltan(personas[i]);
+    if (dias <= 1) {
+      var clave = "aviso_" + personas[i].id + "_" + hoy.toDateString() + "_" + dias;
+      if (siempre == true || localStorage.getItem(clave) == null) {
+        localStorage.setItem(clave, "si");
+        var titulo = "Mañana cumple años " + personas[i].nombre;
+        if (dias == 0) {
+          titulo = " ¡¡¡Hoy cumple años!!! " + personas[i].nombre;
+        }
+        var mensaje = "No olvides felicitarle.";
+        if (personas[i].regalo != "") {
+          mensaje = "Idea de regalo: " + personas[i].regalo;
+        }
+        new Notification(titulo, { body: mensaje });
+      }
+    }
+  }
+}
+
+function dibujarTodo() {
+  mostrarProximos();
+  dibujarCalendario();
+  mostrarDetalleDia();
+  mostrarLista();
+}
+
+setInterval(function () {
+  var ahora = new Date();
+  ahora.setHours(0, 0, 0, 0);
+  if (ahora.getTime() != hoy.getTime()) {
+    hoy = ahora;
+    dibujarTodo();
+  }
+  mostrarAvisos(false);
+}, 60000);
+
+cargarDatos();
+llenarDias();
+dibujarTodo();
+dibujarNotas();
+actualizarBotonAvisos();
+mostrarAvisos(false);
