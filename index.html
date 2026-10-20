@@ -10,8 +10,7 @@
 
 <header class="nav">
   <a href="#inicio" class="brand" data-go="inicio" aria-label="On My Day">
-
-    <span><img src="logo2.jpg" class="imagen"  ></span>
+    <span><img src="logo2.jpg" class="imagen" alt="Logo de On My Day"></span>
   </a>
   <nav id="menu" aria-label="Secciones">
     <button data-go="inicio" class="active">Inicio</button>
@@ -19,7 +18,7 @@
     <button data-go="cumpleanos">Cumpleaños</button>
     <button data-go="notas">Notas</button>
   </nav>
-  <button id="btnNotif" class="btn ghost small"> Activar avisos</button>
+  <button id="btnNotif" class="btn ghost small">Activar avisos</button>
 </header>
 
 <main>
@@ -60,9 +59,30 @@
         <label>Nombre
           <input type="text" id="nombre" required maxlength="40" placeholder="Ej. María">
         </label>
-        <label>Fecha de cumpleaños
-          <input type="date" id="fecha" required>
-        </label>
+        <div class="fecha-campos">
+          <label>Mes
+            <select id="mes" required>
+              <option value="">Mes</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </label>
+          <label>Día
+            <select id="dia" required>
+              <option value="">Día</option>
+            </select>
+          </label>
+        </div>
         <label>Ideas de regalo
           <textarea id="regalo" rows="3" placeholder="Ej. Libro de cocina, bufanda azul…"></textarea>
         </label>
@@ -89,11 +109,13 @@
 
   <section id="notas" class="view">
     <div class="card">
-      <h2>Notas</h2>
-      <p>Anota cualquier idea o recordatorio sobre regalos y celebraciones.</p>
-      <textarea id="notasGenerales" rows="10" placeholder="Escribe aquí tus ideas…"></textarea>
-      <p class="estado" id="estadoNotas" aria-live="polite"></p>
+      <div class="notas-encabezado">
+        <h2>Notas</h2>
+        <button type="button" class="btn small" id="nuevaNota">+ Nueva nota</button>
+      </div>
+      <p>Anota ideas de regalos o recordatorios, cada una en su propia nota.</p>
     </div>
+    <div id="listaNotas" class="notas-cuadricula"></div>
   </section>
 </main>
 
